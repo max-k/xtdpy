@@ -3,7 +3,6 @@
 
 __author__    = "Xavier MARCELET <xavier@marcelet.com>"
 __copyright__ = "http://stackoverflow.com/questions/20656135/python-deep-merge-dictionary-data"
-__version__   = "0.3"
 
 #------------------------------------------------------------------#
 
