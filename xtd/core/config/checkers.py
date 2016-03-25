@@ -169,7 +169,7 @@ def check_socket(p_section, p_name, p_value, p_schemes = []):
   l_data = urllib.parse.urlparse(p_value)
   if len(p_schemes) and (not l_data.scheme in p_schemes):
     raise ConfigValueException(p_section, p_name, "invalid url '%s', scheme '%s' not in '%s'" % (p_value, l_data.scheme, str(p_schemes)))
-  if not l_data.port:
+  if not l_data.scheme.startswith("unix") and not l_data.port:
     raise ConfigValueException(p_section, p_name, "invalid url '%s', port is mandatory" % p_value)
   return p_value
 

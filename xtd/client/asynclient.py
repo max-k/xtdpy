@@ -10,7 +10,8 @@ import urllib.parse
 import io
 import pycurl
 
-from ..core import logger
+from ..core       import logger
+from ..core.tools import url
 
 #------------------------------------------------------------------#
 
@@ -42,6 +43,9 @@ class TCPResponse:
 
   def has_error(self):
     return self.m_error != ""
+
+  def __getattr__(self, p_name):
+    return object.__getattribute__(self, "m_" + p_name)
 
 class HTTPResponse(TCPResponse):
   def __init__(self, p_client):
@@ -119,12 +123,6 @@ class AsyncCurlClient:
     self.m_response = TCPResponse()
     self.m_handle.setopt(pycurl.WRITEFUNCTION,  self.m_data.write)
 
-  def unix_socket(self, p_path):
-    l_value = p_path
-    if "unix://" in l_value:
-      l_value = l_value[7:]
-    self.m_handle.setopt(pycurl.UNIX_SOCKET_PATH, l_value)
-
   def options(self, p_opts):
     try:
       for c_opt, c_val in p_opts.items():
@@ -166,7 +164,11 @@ class AsyncCurlClient:
       self.m_handle.setopt(pycurl.CUSTOMREQUEST, "DELETE")
 
   def _init_url(self):
-    self.m_handle.setopt(pycurl.URL, self.m_request.m_url)
+    l_parsed, l_unix = url.parse_unix(self.m_request.m_url)
+    l_url            = urllib.parse.urlunparse(l_parsed)
+    self.m_handle.setopt(pycurl.URL, l_url)
+    if l_unix:
+      self.m_handle.setopt(pycurl.UNIX_SOCKET_PATH, l_unix)
 
   def _init_headers(self):
     l_headers = [ "%s: %s" % (x,y) for x,y in self.m_request.m_headers.items() ]
@@ -188,7 +190,6 @@ class AsyncCurlClient:
     l_retry = p_retry
     while l_retry >= 0:
       self.cleanup()
-
       try:
         self.m_handle.perform()
         self.read_response()
@@ -197,12 +198,14 @@ class AsyncCurlClient:
           logger.warning(__name__, "timeout on request '%s' : %s", self.m_request.m_url, l_error.args[1])
           self.m_response.m_error = l_error.args[1]
           return False
+        else:
+          self.m_response.m_error = "curl error (%d)" % l_error.args[0]
       if not self.response().has_error():
         return True
       logger.info(__name__, "error on request '%s' (left %d retries left) : %s", self.m_request.m_url, l_retry, self.response().error)
       l_retry -= 1
     logger.error(__name__, "error on request '%s' : %s", self.m_request.m_url, self.response().error)
-    return True
+    return False
 
   def close(self):
     self.m_handle.close()
