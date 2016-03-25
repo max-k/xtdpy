@@ -53,8 +53,6 @@ class HTTPResponse(TCPResponse):
     self.m_status_code = p_client.m_handle.getinfo(pycurl.RESPONSE_CODE)
     self.m_mimetype    = "text/plain"
     self.m_encoding    = "iso-8859-1"
-    for c_key, c_val in p_kwds.items():
-      setattr(self, "m_" + c_key, c_val)
     self._read()
 
   def _read_ctype(self, p_headers):
@@ -82,7 +80,7 @@ class HTTPResponse(TCPResponse):
     return self.m_error != ""
 
   def __getattr__(self, p_name):
-    return getattr(self, "m_" + p_name)
+    return object.__getattribute__(self, "m_" + p_name)
 
 class AsyncCurlClient:
   def __init__(self, p_request, p_timeoutMs = 1000, p_curlOpts = {}):

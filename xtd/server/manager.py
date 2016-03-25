@@ -71,6 +71,7 @@ class ServerManager:
     logging.getLogger("cherrypy.acccess").addFilter(l_filterAccess)
     logging.getLogger("cherrypy.error").addFilter(l_filterError)
     cherrypy.config.update({
+      "environment"                   : "production",
       "engine.autoreload.on"          : False,
       "log.screen"                    : True,
       "log.access_file"               : "",
