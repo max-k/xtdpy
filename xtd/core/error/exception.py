@@ -28,7 +28,6 @@ class BaseException(Exception):
 
 class ConfigException(BaseException):
   def __init__(self, p_message):
-    print("msg : %s" % p_message)
     super().__init__(p_module="config", p_message=p_message)
 
 

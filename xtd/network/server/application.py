@@ -59,20 +59,17 @@ class ServerApplication(Application):
       "name"        : "tlscacert",
       "default"     : None,
       "valued"      : True,
-      "description" : "TLS CA-Certificate file",
-      "checks"      : checkers.is_file(p_read=True)
+      "description" : "TLS CA-Certificate file"
     },{
       "name"        : "tlscert",
       "default"     : None,
       "valued"      : True,
-      "description" : "TLS Certificate file",
-      "checks"      : checkers.is_file(p_read=True)
+      "description" : "TLS Certificate file"
     },{
       "name"        : "tlskey",
       "default"     : None,
       "valued"      : True,
-      "description" : "TLS key file",
-      "checks"      : checkers.is_file(p_read=True)
+      "description" : "TLS key file"
     }])
 
 
@@ -135,8 +132,17 @@ class ServerApplication(Application):
       "request" : l_reqinfo
     }
 
+  def _check_config(self):
+    l_useTLS = config.get("http", "tls")
+    if l_useTLS:
+      l_values = [ "tlscacert", "tlscert", "tlskey" ]
+      for c_key in l_values:
+        l_val = config.get("http", c_key)
+        config.set("http", c_key, checkers.is_file("http", c_key, l_val, p_read=True))
+
   def initialize(self):
     super().initialize()
+    self._check_config()
     self._initialize_server()
 
   def start(self):

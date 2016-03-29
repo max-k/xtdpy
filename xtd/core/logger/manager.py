@@ -22,49 +22,77 @@ DEFAULT_CONFIG = {
   "loggers" : {
     "root" : {
       "handlers" : [ "stdout", "rotfile", "syslog"],
-      "level"    : 10
+      "level"    : 40
     }
   },
-
   "handlers" : {
     "rotfile" : {
       "class"       : "logging.handlers.RotatingFileHandler",
       "filename"    : "out.log",
       "formatter"   : "default",
-      "maxBytes"    : 15*1024*1024,
-      "backupCount" : 3
+      "maxBytes"    : 15728640,
+      "backupCount" : 3,
+      "filters"     : []
     },
     "stdout" : {
       "class"       : "logging.StreamHandler",
       "formatter"   : "location",
-      "stream"      : "stdout"
+      "stream"      : "stdout",
+      "filters"     : [ "colored" ]
     },
     "syslog" : {
       "class"       : "logging.handlers.SysLogHandler",
       "formatter"   : "default",
-      "address"     : "/dev/log"
+      "address"     : "/dev/log",
+      "filters"     : []
     },
     "memory" : {
       "class"       : "xtd.core.logger.handler.MemoryHandler",
       "formatter"   : "default",
-      "max_records" : 2000
+      "max_records" : 2000,
+      "filters"     : []
     }
   },
-
   "formatters" : {
     "default" : {
       "class"   : "logging.Formatter",
       "fmt"     : "%(asctime)s (%(name)s) [%(levelname)s] : %(message)s",
-      "datefmt" : "%a %d %b %Y at %H-%M",
+      "datefmt" : "%a %d %b %Y at %H-%M"
     },
     "location" : {
-      "class"   : "xtd.core.logger.formatter.LocationFormatter",
-      "fmt"     : "%(asctime)s (%(name)s) [%(levelname)s] : %(message)s %(location)s",
-      "locfmt"  : "at %(pathname)s:%(lineno)s -> %(funcName)s",
+      "class"    : "xtd.core.logger.formatter.LocationFormatter",
+      "fmt"      : "%(asctime)s (%(name)s) [%(levelname)s] : %(message)s %(location)s",
       "datefmt" : "%Y-%m-%d %H:%M:%S",
+      "locfmt"   : "at %(pathname)s:%(lineno)s -> %(funcName)s",
+      "locstyle" : { "colors" : [ "grey" ],  "attrs"  : [ "bold" ] }
+    }
+  },
+  "filters" : {
+    "colored" : {
+      "class"   : "xtd.core.logger.filter.FieldFilter",
+      "fields"  : {
+        "name" : {
+          "pad"    : "left",
+          "styles": {
+            "default" : { "colors" : [ "red"  ],  "attrs"  : [ "bold" ] }
+          }
+        },
+        "levelname" : {
+          "pad"    : "left",
+          "styles" : {
+            "DEBUG"     : { "colors" : [ "yellow" ],  "attrs"  : [ ]        },
+            "INFO"      : { "colors" : [ "yellow" ],  "attrs"  : [ "bold" ] },
+            "WARNING"   : { "colors" : [ "red" ],     "attrs"  : [ ]        },
+            "ERROR"     : { "colors" : [ "red" ],     "attrs"  : [ "bold" ] },
+            "EXCEPTION" : { "colors" : [ "magenta" ], "attrs"  : [ "bold" ] },
+            "default"   : { "colors" : [ "yellow"  ], "attrs"  : [ "bold" ] }
+          }
+        }
+      }
     }
   }
 }
+
 
 #------------------------------------------------------------------#
 
@@ -155,23 +183,38 @@ class LogManager(metaclass=mixin.Singleton):
     except Exception as l_error:
       raise BaseException(__name__, "unable to override logging configuration '%s' : %s" % (str(p_override), str(l_error)))
 
-  def initialize(self, p_config = {}, p_override = {}):
-    logging.setLoggerClass(WrapperLogger)
-    self.load_config(p_config, p_override)
-
-    for c_name, c_conf in self.m_config["filters"].items():
+  def _load_filters(self):
+    l_usedFilters = set()
+    for c_name, c_value in self.m_config["handlers"].items():
+      l_usedFilters |= set([ x for x in c_value["filters"] ])
+    l_filters = { x:y for x,y in self.m_config["filters"].items() if x in l_usedFilters }
+    for c_name, c_conf in l_filters.items():
       l_class = self._get_class(c_conf["class"])
       l_params = { x : y for x,y in c_conf.items() if x != "class" }
-      l_obj = l_class(**l_params)
+      try:
+        l_obj = l_class(**l_params)
+      except Exception as l_error:
+        raise BaseException(__name__, "unable to initialize logging filter '%s' : %s" % (c_name, str(l_error)))
       self.add_filter(c_name, l_obj)
 
-    for c_name, c_conf in self.m_config["formatters"].items():
-      l_class = self._get_class(c_conf["class"])
+  def _load_formatters(self):
+    l_usedFormatters = set([ y["formatter"] for x,y in self.m_config["handlers"].items() ])
+    l_formatters     = { x:y for x,y in self.m_config["formatters"].items() if x in l_usedFormatters }
+    for c_name, c_conf in l_formatters.items():
+      l_class  = self._get_class(c_conf["class"])
       l_params = { x : y for x,y in c_conf.items() if x != "class" }
-      l_obj = l_class(**l_params)
+      try:
+        l_obj = l_class(**l_params)
+      except Exception as l_error:
+        raise BaseException(__name__, "unable to initialize logging formatter '%s' : %s" % (c_name, str(l_error)))
       self.add_formatter(c_name, l_obj)
 
-    for c_name, c_conf in self.m_config["handlers"].items():
+  def _load_handlers(self):
+    l_usedHandlers = set()
+    for c_name, c_value in self.m_config["loggers"].items():
+      l_usedHandlers |= set([ x for x in c_value["handlers"] ])
+    l_handlers = { x:y for x,y in self.m_config["handlers"].items() if x in l_usedHandlers }
+    for c_name, c_conf in l_handlers.items():
       l_class = self._get_class(c_conf["class"])
       l_formatterName = c_conf.get("formatter", "default")
       l_params = { x : y for x,y in c_conf.items() if x not in [ "class", "formatter", "filters" ] }
@@ -182,8 +225,10 @@ class LogManager(metaclass=mixin.Singleton):
           l_params["stream"] = sys.stderr
         else:
           l_params["stream"] = open(l_params["stream"], mode="w+")
-
-      l_obj = l_class(**l_params)
+      try:
+        l_obj = l_class(**l_params)
+      except Exception as l_error:
+        raise BaseException(__name__, "unable to initialize logging handler '%s' : %s" % (c_name, str(l_error)))
       l_formatter = self.get_formatter(l_formatterName)
       l_obj.setFormatter(l_formatter)
       for c_filter in c_conf.get("filters", []):
@@ -191,18 +236,29 @@ class LogManager(metaclass=mixin.Singleton):
         l_obj.addFilter(l_filter)
       self.add_handler(c_name, l_obj)
 
+  def _load_loggers(self):
     for c_name, c_conf in self.m_config["loggers"].items():
       l_handlers = c_conf.get("handlers", [])
       l_level    = c_conf.get("level", 40)
-
       if c_name == "root":
         l_logger = logging.getLogger()
       else:
         l_logger = logging.getLogger(c_name)
-
       l_logger.setLevel(l_level)
       for c_handler in l_handlers:
         l_handler = self.get_handler(c_handler)
         l_logger.addHandler(l_handler)
 
+  def initialize(self, p_config = {}, p_override = {}):
+    logging.setLoggerClass(WrapperLogger)
+    self.load_config(p_config, p_override)
+    try:
+      self._load_filters()
+      self._load_formatters()
+      self._load_handlers()
+      self._load_loggers()
+    except KeyError as l_error:
+      raise BaseException(__name__, "unable to initialize logging facility : unexpected key %s in configuration" % str(l_error))
+    except Exception as l_error:
+      raise BaseException(__name__, "unable to initialize logging facility : %s" % str(l_error))
     logger.info(__name__, "facility initialized")

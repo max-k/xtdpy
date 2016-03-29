@@ -30,6 +30,7 @@ class Option:
     self.m_checks      = []
     self.m_longopt     = "--%s-%s" % (p_section, p_name)
     self.m_mandatory   = None
+    self.m_configSet   = False
     self.update(p_prop)
 
   def update(self, p_props):
@@ -50,6 +51,11 @@ class Option:
     for c_check in self.m_checks:
       p_value = c_check(self.m_section, self.m_name, p_value)
     return p_value
+
+  def configSet(self, p_val = None):
+    if p_val != None:
+      self.m_configSet = p_val
+    return self.m_configSet
 
 class ConfigManager(metaclass=mixin.Singleton):
   def __init__(self):
@@ -106,7 +112,6 @@ class ConfigManager(metaclass=mixin.Singleton):
   def initialize(self):
     self._cmd_parser_create()
 
-
   def parse(self, p_argv = sys.argv):
     self._cmd_parser_load(p_argv)
     self._file_parser_load()
@@ -151,6 +156,7 @@ class ConfigManager(metaclass=mixin.Singleton):
       l_name  = c_option.m_name.replace('-', '_')
       l_value = getattr(l_opts, "parse_%s_%s" % (c_option.m_section, l_name))
       if l_value:
+        c_option.configSet(True)
         l_value = self._validate(c_option.m_section, c_option.m_name, l_value)
         self.set(c_option.m_section, c_option.m_name, l_value)
 
@@ -166,8 +172,10 @@ class ConfigManager(metaclass=mixin.Singleton):
 
     for c_section, c_data in l_data.items():
       for c_option, c_value in c_data.items():
-        l_value = self._validate(c_section, c_option, c_value)
-        self.set(c_section, c_option, l_value)
+        l_option  = self._get_option(c_section, c_option)
+        if not l_option.configSet():
+          l_value = self._validate(c_section, c_option, c_value)
+          self.set(c_section, c_option, l_value)
 
   def _validate(self, p_section, p_name, p_value = None):
     if p_value == None:
