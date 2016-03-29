@@ -36,7 +36,7 @@ DEFAULT_CONFIG = {
     },
     "stdout" : {
       "class"       : "logging.StreamHandler",
-      "formatter"   : "colored",
+      "formatter"   : "location",
       "stream"      : "stdout"
     },
     "syslog" : {
@@ -57,27 +57,11 @@ DEFAULT_CONFIG = {
       "fmt"     : "%(asctime)s (%(name)s) [%(levelname)s] : %(message)s",
       "datefmt" : "%a %d %b %Y at %H-%M",
     },
-    "colored" : {
-      "class"   : "xtd.core.logger.formatter.FieldFormatter",
+    "location" : {
+      "class"   : "xtd.core.logger.formatter.LocationFormatter",
       "fmt"     : "%(asctime)s (%(name)s) [%(levelname)s] : %(message)s %(location)s",
       "locfmt"  : "at %(pathname)s:%(lineno)s -> %(funcName)s",
       "datefmt" : "%Y-%m-%d %H:%M:%S",
-      "fields"  : {
-        "name" : {
-          "pad"    : "left",
-          "colors" : [ "red"  ],
-          "attrs"  : [ "bold" ]
-        },
-        "levelname" : {
-          "pad"    : "left",
-          "colors" : [ "yellow"  ],
-          "attrs"  : [ "bold" ]
-        },
-        "location" : {
-          "colors" : [ "grey" ],
-          "attrs"  : [ "bold" ]
-        }
-      }
     }
   }
 }
@@ -113,6 +97,7 @@ class LogManager(metaclass=mixin.Singleton):
     self.m_logs       = []
     self.m_handlers   = {}
     self.m_formatters = {}
+    self.m_filters    = {}
     self.m_loggers    = {}
     self.m_config     = DEFAULT_CONFIG
 
@@ -120,6 +105,11 @@ class LogManager(metaclass=mixin.Singleton):
     if p_name in self.m_formatters:
       raise BaseException(__name__, "multiply definied logging formatter '%s'" % p_name)
     self.m_formatters[p_name] = p_obj
+
+  def add_filter(self, p_name, p_obj):
+    if p_name in self.m_filters:
+      raise BaseException(__name__, "multiply definied logging filter '%s'" % p_name)
+    self.m_filters[p_name] = p_obj
 
   def add_handler(self, p_name, p_obj):
     if p_name in self.m_handlers:
@@ -131,6 +121,11 @@ class LogManager(metaclass=mixin.Singleton):
       raise BaseException(__name__, "undefinied logging formatter '%s'" % p_name)
     return self.m_formatters[p_name]
 
+  def get_filter(self, p_name):
+    if not p_name in self.m_filters:
+      raise BaseException(__name__, "undefinied logging filter '%s'" % p_name)
+    return self.m_filters[p_name]
+
   def get_handler(self, p_name):
     if not p_name in self.m_handlers:
       raise BaseException(__name__, "undefinied logging handler '%s' " % p_name)
@@ -140,7 +135,6 @@ class LogManager(metaclass=mixin.Singleton):
     l_parts      = p_name.split('.')
     l_moduleName = '.'.join(l_parts[:-1])
     l_className  = '.'.join(l_parts[-1:])
-
     try:
       l_module = importlib.import_module(l_moduleName)
     except Exception as l_error:
@@ -151,27 +145,25 @@ class LogManager(metaclass=mixin.Singleton):
     except Exception as l_error:
       raise BaseException(__name__, "unable to find class '%s' in module '%s'" % (l_className, l_moduleName))
 
-  def load_config(self, p_file, p_override):
-    l_conf = p_file
-    if not p_file:
-      l_conf = self.m_config
-    else:
-      try:
-        l_file    = open(p_file, mode="r", encoding="utf-8")
-        l_content = l_file.read()
-        l_conf = json.loads(l_content)
-      except Exception as l_error:
-        raise BaseException(__name__, "unable to load json configuration %s : %s" % (p_file, str(l_error)))
-
+  def load_config(self, p_config, p_override):
+    l_config = p_config
+    if l_config == {}:
+      l_config = self.m_config
     try:
-      l_conf = dict(mergedicts.mergedicts(l_conf, p_override))
-      self.m_config = l_conf
+      l_result = dict(mergedicts.mergedicts(l_config, p_override))
+      self.m_config = l_result
     except Exception as l_error:
       raise BaseException(__name__, "unable to override logging configuration '%s' : %s" % (str(p_override), str(l_error)))
 
-  def initialize(self, p_file = None, p_override = {}):
+  def initialize(self, p_config = {}, p_override = {}):
     logging.setLoggerClass(WrapperLogger)
-    self.load_config(p_file, p_override)
+    self.load_config(p_config, p_override)
+
+    for c_name, c_conf in self.m_config["filters"].items():
+      l_class = self._get_class(c_conf["class"])
+      l_params = { x : y for x,y in c_conf.items() if x != "class" }
+      l_obj = l_class(**l_params)
+      self.add_filter(c_name, l_obj)
 
     for c_name, c_conf in self.m_config["formatters"].items():
       l_class = self._get_class(c_conf["class"])
@@ -182,8 +174,7 @@ class LogManager(metaclass=mixin.Singleton):
     for c_name, c_conf in self.m_config["handlers"].items():
       l_class = self._get_class(c_conf["class"])
       l_formatterName = c_conf.get("formatter", "default")
-      l_params = { x : y for x,y in c_conf.items() if x not in [ "class", "formatter" ] }
-
+      l_params = { x : y for x,y in c_conf.items() if x not in [ "class", "formatter", "filters" ] }
       if "stream" in l_params:
         if l_params["stream"] == "stdout":
           l_params["stream"] = sys.stdout
@@ -195,6 +186,9 @@ class LogManager(metaclass=mixin.Singleton):
       l_obj = l_class(**l_params)
       l_formatter = self.get_formatter(l_formatterName)
       l_obj.setFormatter(l_formatter)
+      for c_filter in c_conf.get("filters", []):
+        l_filter = self.get_filter(c_filter)
+        l_obj.addFilter(l_filter)
       self.add_handler(c_name, l_obj)
 
     for c_name, c_conf in self.m_config["loggers"].items():

@@ -45,15 +45,10 @@ class Application(metaclass=mixin.Singleton):
       """,
       "checks"      : config.checkers.is_enum(p_values=[10,20,30,40,50])
     },{
-      "name"        : "config-file",
-      "default"     : None,
-      "description" : "logging configuration file",
-      "valued"      : True,
-      "checks"      : config.checkers.is_file(p_read=True)
-    },{
-      "name"        : "filters",
-      "default"     : "all",
-      "description" : "show only specified logging handlers"
+      "name"        : "config",
+      "default"     : {},
+      "description" : "Logging configuration",
+      "checks"      : config.checkers.is_json()
     },{
       "name"        : "override",
       "default"     : {},
@@ -128,8 +123,7 @@ class Application(metaclass=mixin.Singleton):
 
   def _initialize_log(self):
     self.m_logger = logger.manager.LogManager()
-    self.m_logger.initialize(config.get("log", "config-file"),
-                             config.get("log", "override"))
+    self.m_logger.initialize(config.get("log", "config"), config.get("log", "override"))
 
   def _initialize_param(self):
     self.m_param = param.manager.ParamManager(config.get("param", "directory"))
