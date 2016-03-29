@@ -13,31 +13,36 @@ import socket
 from functools import partial
 
 from ..error.exception import *
+from ..tools           import url
 
 #------------------------------------------------------------------#
 
 
 def check_file(p_section, p_name, p_value, p_read = False, p_write = False, p_execute = False):
-  l_absFilePath = os.path.abspath(p_value)
+  l_absFilePath = os.path.expanduser(p_value)
+  l_absFilePath = os.path.abspath(l_absFilePath)
+
   if os.path.isdir(l_absFilePath):
     raise ConfigValueFileException(p_section, p_name, l_absFilePath)
-  if not os.path.isfile(l_absFilePath):
+
+  if not os.path.exists(l_absFilePath):
     if p_read or not check_mode(os.path.dirname(l_absFilePath), p_write=True):
       raise ConfigValueFileModeException(p_section, p_name, p_value, p_read, p_write, p_execute)
   else:
     if not check_mode(l_absFilePath, p_read, p_write, p_execute):
       raise ConfigValueFileModeException(p_section, p_name, p_value, p_read, p_write,p_execute)
-  return p_value
+  return l_absFilePath
 
 # ------------------------------------------------------------------------- #
 
 def check_dir(p_section, p_name, p_value, p_read = False, p_write = False, p_execute = False):
-  l_absDirPath = os.path.abspath(p_value)
+  l_absDirPath = os.path.expanduser(p_value)
+  l_absDirPath = os.path.abspath(l_absDirPath)
   if not os.path.isdir(l_absDirPath):
     raise ConfigValueDirException(p_section, p_name, l_absDirPath)
   if not check_mode(l_absDirPath, p_read, p_write, p_execute):
     raise ConfigValueDirModeException(p_section, p_name, p_value, p_read, p_write, p_execute)
-  return p_value
+  return l_absDirPath
 
 # ------------------------------------------------------------------------- #
 
@@ -68,11 +73,12 @@ def check_float(p_section, p_name, p_value, p_min = None, p_max = None):
 # ------------------------------------------------------------------------- #
 
 def check_bool(p_section, p_name, p_value):
+  if type(p_value) == bool:
+    return p_value
   if ((p_value.lower() == 'true') or
       (p_value.lower() == 'yes') or
       (p_value.lower() == 'on')):
     return True
-
   if ((p_value.lower() == 'false') or
       (p_value.lower() == 'no') or
       (p_value.lower() == 'off')):
@@ -91,37 +97,16 @@ def check_enum(p_section, p_name, p_value, p_values):
 def check_mode(p_path, p_read = False, p_write = False, p_execute = False):
   if not os.path.exists(p_path):
       return False
-  l_uid = os.getuid()
-  l_gid = os.getgid()
-  l_dir_stat       = os.stat(p_path)
-  l_dir_uid        = l_dir_stat.st_uid
-  l_dir_gid        = l_dir_stat.st_gid
-  l_dir_mode       = l_dir_stat.st_mode
-  l_dir_user_mode  = l_dir_mode & 0o0700
-  l_dir_group_mode = l_dir_mode & 0o0070
-  l_dir_other_mode = l_dir_mode & 0o0007
-  if l_uid == l_dir_uid:
-    if p_read and not (l_dir_user_mode & 0o0400):
-      return False
-    if p_write and not (l_dir_user_mode & 0o0200):
-      return False
-    if p_execute and not (l_dir_user_mode & 0o0100):
-      return False
-  elif l_gid == l_dir_gid:
-    if p_read and not (l_dir_group_mode & 0o0040):
-      return False
-    if p_write and not (l_dir_group_mode & 0o0020):
-      return False
-    if p_execute and not (l_dir_group_mode & 0o0010):
-      return False
-  else:
-    if p_read and not (l_dir_other_mode & 0o0004):
-      return False
-    if p_write and not (l_dir_other_mode & 0o0002):
-      return False
-    if p_execute and not (l_dir_other_mode & 0o0001):
-      return False
-  return True
+  l_mode = os.F_OK
+  if p_read:
+    l_mode = l_mode or os.R_OK
+  if p_write:
+    l_mode = l_mode or os.W_OK
+  if p_execute:
+    l_mode = l_mode or os.X_OK
+  if os.access(p_path, l_mode):
+    return True
+  return False
 
 # ------------------------------------------------------------------------- #
 
@@ -137,8 +122,11 @@ def check_mail(p_section, p_name, p_value):
 # ------------------------------------------------------------------------- #
 
 def check_array(p_section, p_name, p_value, p_check = None):
-  l_res = []
-  for c_val in p_value.split(","):
+  l_res   = []
+  l_value = p_value
+  if not type(l_value) == list:
+    l_value = l_value.split(",")
+  for c_val in l_value:
     if p_check:
       l_res.append(p_check(p_section, p_name, c_val))
     else:
@@ -157,20 +145,24 @@ def check_host(p_section, p_name, p_value):
 
 # ------------------------------------------------------------------------- #
 
-def check_json(p_section, p_name, p_value):
-  try:
-    return json.loads(p_value)
-  except Exception as l_error:
-    raise ConfigValueException(p_section, p_name, "invalid json : %s" % str(l_error))
+def check_json(p_section, p_name, p_value, p_checks = {}):
+  if type(p_value) != dict:
+    try:
+      p_value = json.loads(p_value)
+    except Exception as l_error:
+      raise ConfigValueException(p_section, p_name, "invalid json : %s" % str(l_error))
+  return p_value
 
 # ------------------------------------------------------------------------- #
 
-def check_socket(p_section, p_name, p_value, p_schemes = []):
-  l_data = urllib.parse.urlparse(p_value)
-  if len(p_schemes) and (not l_data.scheme in p_schemes):
-    raise ConfigValueException(p_section, p_name, "invalid url '%s', scheme '%s' not in '%s'" % (p_value, l_data.scheme, str(p_schemes)))
-  if not l_data.scheme.startswith("unix") and not l_data.port:
-    raise ConfigValueException(p_section, p_name, "invalid url '%s', port is mandatory" % p_value)
+def check_socket(p_section, p_name, p_value, p_schemes = [], p_checkUnix = False):
+  l_parts = urllib.parse.urlparse(p_value)
+  if len(p_schemes) and (not l_parts[0] in p_schemes):
+    raise ConfigValueException(p_section, p_name, "invalid url '%s', scheme '%s' not in '%s'" % (p_value, l_parts[0], str(p_schemes)))
+
+  l_url, l_unix = url.parse_unix(p_value)
+  if p_checkUnix and l_unix:
+    check_file(p_section, p_name, l_unix, p_read=True, p_write=True)
   return p_value
 
 # ------------------------------------------------------------------------- #
@@ -199,5 +191,3 @@ def is_socket(*p_args, **p_kwds):
   return partial(check_socket, *p_args, **p_kwds)
 
 # ------------------------------------------------------------------------- #
-
-

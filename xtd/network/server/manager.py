@@ -11,9 +11,9 @@ import re
 import cherrypy
 import logging
 
-from ..core      import logger
-from ..core.stat import counter
-from .           import tools
+from xtd.core      import logger
+from xtd.core.stat import counter
+from .             import tools
 
 #------------------------------------------------------------------#
 
@@ -34,8 +34,10 @@ class ServerManager:
       l_logger.handle(p_record)
       return None
 
-  @staticmethod
-  def listen(p_socket, p_nbThreads = 10):
+  @classmethod
+  def listen(p_class, p_socket, p_nbThreads = 10, p_tls = False, p_cacert = None, p_cert = None, p_key = None):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     l_server = cherrypy._cpserver.Server()
     p_socket = urllib.parse.urlparse(p_socket)
     if p_socket.scheme == "tcp":
@@ -46,7 +48,13 @@ class ServerManager:
       l_server.socket_port = l_port
     elif p_socket.scheme == "unix":
       l_server.bind_addr = p_socket.path
-    l_server.thread_pool = p_nbThreads
+    l_server.thread_pool           = p_nbThreads
+    if p_tls:
+      cherrypy.log("Enabling TLS support")
+      l_server.ssl_module            = "builtin"
+      #l_server.ssl_certificate_chain = p_cacert
+      l_server.ssl_certificate       = p_cert
+      l_server.ssl_private_key       = p_key
     l_server.subscribe()
     return l_server
 
@@ -84,24 +92,35 @@ class ServerManager:
     cherrypy.engine.signals.subscribe()
     p_class.ms_initialized = True
 
-  @staticmethod
-  def mount(p_handler, p_path, p_conf = {}, p_logger = "cherrypy"):
+  @classmethod
+  def mount(p_class, p_handler, p_path, p_conf = {}, p_logger = "cherrypy"):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     l_app = cherrypy.tree.mount(p_handler, p_path, p_conf)
     l_app.log.error_log = logging.getLogger(p_logger + ".error")
     l_app.log.access_log = logging.getLogger(p_logger + ".access")
 
-  @staticmethod
-  def subscribe(p_channel, p_handler, p_prio):
+  @classmethod
+  def subscribe(p_class, p_channel, p_handler, p_prio):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     cherrypy.engine.subscribe(p_channel, p_handler, p_prio)
 
-  @staticmethod
-  def start():
+  @classmethod
+
+  def start(p_class):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     cherrypy.engine.start()
 
-  @staticmethod
-  def join():
+  @classmethod
+  def join(p_class):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     cherrypy.engine.block()
 
-  @staticmethod
-  def stop():
+  @classmethod
+  def stop(p_class):
+    if not p_class.ms_initialized:
+      raise BaseException(__name__, "you must initialize server manager first")
     cherrypy.engine.stop();

@@ -26,7 +26,7 @@ class Application(metaclass=mixin.Singleton):
 
     self.m_config.register_section("general", "General Settings", [{
       "name"        : "config-file",
-      "default"     : "%s.cfg" % self.m_name,
+      "default"     : "%s.json" % self.m_name,
       "description" : "use FILE as configuration file",
       "longopt"     : "--config-file",
       "checks"      : config.checkers.is_file(p_read=True)

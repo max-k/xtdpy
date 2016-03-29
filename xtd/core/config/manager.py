@@ -5,6 +5,8 @@ __author__    = "Xavier MARCELET <xavier@marcelet.com>"
 
 #------------------------------------------------------------------#
 
+import re
+import json
 import configparser
 import optparse
 import sys
@@ -103,7 +105,7 @@ class ConfigManager(metaclass=mixin.Singleton):
 
   def initialize(self):
     self._cmd_parser_create()
-    self._file_parser_create()
+
 
   def parse(self, p_argv = sys.argv):
     self._cmd_parser_load(p_argv)
@@ -152,16 +154,19 @@ class ConfigManager(metaclass=mixin.Singleton):
         l_value = self._validate(c_option.m_section, c_option.m_name, l_value)
         self.set(c_option.m_section, c_option.m_name, l_value)
 
-  def _file_parser_create(self):
-    self.m_file_parser = configparser.SafeConfigParser()
-
   def _file_parser_load(self):
-    l_file = self._validate("general", "config-file")
-    self.m_file_parser.read(l_file)
-    for c_section in self.m_file_parser.sections():
-      for c_option in self.m_file_parser.options(c_section):
-        l_value  = self.m_file_parser.get(c_section, c_option)
-        l_value  = self._validate(c_section, c_option, l_value)
+    l_fileName = self._validate("general", "config-file")
+    try:
+      with open(l_fileName, mode="r", encoding="utf-8") as l_file:
+        l_lines = [ x for x in l_file.readlines() if not re.match("^\s*//.*" ,x) ]
+        l_content = "\n".join(l_lines)
+        l_data = json.loads(l_content)
+    except Exception as l_error:
+      raise ConfigValueException("general", "config-file", "invalid json configuration : %s" % str(l_error))
+
+    for c_section, c_data in l_data.items():
+      for c_option, c_value in c_data.items():
+        l_value = self._validate(c_section, c_option, c_value)
         self.set(c_section, c_option, l_value)
 
   def _validate(self, p_section, p_name, p_value = None):
@@ -169,6 +174,3 @@ class ConfigManager(metaclass=mixin.Singleton):
       p_value = self.get(p_section, p_name)
     l_option = self._get_option(p_section, p_name)
     return l_option.validate(p_value)
-
-
-

@@ -118,22 +118,22 @@ class LogManager(metaclass=mixin.Singleton):
 
   def add_formatter(self, p_name, p_obj):
     if p_name in self.m_formatters:
-      raise BaseException("multiply definied logging formatter '%s'" % p_name, "logging")
+      raise BaseException(__name__, "multiply definied logging formatter '%s'" % p_name)
     self.m_formatters[p_name] = p_obj
 
   def add_handler(self, p_name, p_obj):
     if p_name in self.m_handlers:
-      raise BaseException("multiply definied logging handler '%s'" % p_name, "logging")
+      raise BaseException(__name__, "multiply definied logging handler '%s'" % p_name)
     self.m_handlers[p_name] = p_obj
 
   def get_formatter(self, p_name):
     if not p_name in self.m_formatters:
-      raise BaseException("undefinied logging formatter '%s'" % p_name, "logging")
+      raise BaseException(__name__, "undefinied logging formatter '%s'" % p_name)
     return self.m_formatters[p_name]
 
   def get_handler(self, p_name):
     if not p_name in self.m_handlers:
-      raise BaseException("undefinied logging handler '%s' " % p_name, "logging")
+      raise BaseException(__name__, "undefinied logging handler '%s' " % p_name)
     return self.m_handlers[p_name]
 
   def _get_class(self, p_name):
@@ -144,12 +144,12 @@ class LogManager(metaclass=mixin.Singleton):
     try:
       l_module = importlib.import_module(l_moduleName)
     except Exception as l_error:
-      raise BaseException("unable to import module '%s' : %s" % (l_moduleName, str(l_error)), "logging")
+      raise BaseException(__name__, "unable to import module '%s' : %s" % (l_moduleName, str(l_error)))
 
     try:
       return getattr(l_module, l_className)
     except Exception as l_error:
-      raise BaseException("unable to find class '%s' in module '%s'" % (l_className, l_moduleName), "logging")
+      raise BaseException(__name__, "unable to find class '%s' in module '%s'" % (l_className, l_moduleName))
 
   def load_config(self, p_file, p_override):
     l_conf = p_file
@@ -161,13 +161,13 @@ class LogManager(metaclass=mixin.Singleton):
         l_content = l_file.read()
         l_conf = json.loads(l_content)
       except Exception as l_error:
-        raise BaseException("unable to load json configuration %s : %s" % (p_file, str(l_error)), "logging")
+        raise BaseException(__name__, "unable to load json configuration %s : %s" % (p_file, str(l_error)))
 
     try:
       l_conf = dict(mergedicts.mergedicts(l_conf, p_override))
       self.m_config = l_conf
     except Exception as l_error:
-      raise BaseException("unable to override logging configuration '%s' : %s" % (str(p_override), str(l_error)), "logging")
+      raise BaseException(__name__, "unable to override logging configuration '%s' : %s" % (str(p_override), str(l_error)))
 
   def initialize(self, p_file = None, p_override = {}):
     logging.setLoggerClass(WrapperLogger)

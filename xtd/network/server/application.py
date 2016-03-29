@@ -16,9 +16,9 @@ from .config                import ConfigPage
 from .param                 import ParamPage
 from .manager               import ServerManager
 
-from ..core                 import logger, config
-from ..core.config          import checkers
-from ..core.application     import Application
+from xtd.core                 import logger, config
+from xtd.core.config          import checkers
+from xtd.core.application     import Application
 
 
 #------------------------------------------------------------------#
@@ -50,6 +50,29 @@ class ServerApplication(Application):
       "default"     : None,
       "valued"      : True,
       "description" : "Administrator password for write access to admin web interfaces"
+    },{
+      "name"        : "tls",
+      "default"     : False,
+      "description" : "Enable TLS of http server",
+      "checks"      : checkers.is_bool()
+    },{
+      "name"        : "tlscacert",
+      "default"     : None,
+      "valued"      : True,
+      "description" : "TLS CA-Certificate file",
+      "checks"      : checkers.is_file(p_read=True)
+    },{
+      "name"        : "tlscert",
+      "default"     : None,
+      "valued"      : True,
+      "description" : "TLS Certificate file",
+      "checks"      : checkers.is_file(p_read=True)
+    },{
+      "name"        : "tlskey",
+      "default"     : None,
+      "valued"      : True,
+      "description" : "TLS key file",
+      "checks"      : checkers.is_file(p_read=True)
     }])
 
 
@@ -66,7 +89,12 @@ class ServerApplication(Application):
       l_credentials = { "admin" : l_password }
 
     ServerManager.initialize(__name__)
-    ServerManager.listen(l_socket, l_threads)
+
+    l_tls    = config.get("http", "tls")
+    l_cacert = config.get("http", "tlscacert")
+    l_cert   = config.get("http", "tlscert")
+    l_key    = config.get("http", "tlskey")
+    ServerManager.listen(l_socket, l_threads, l_tls, l_cacert, l_cert, l_key)
     ServerManager.mount(self,          "/",              {}, __name__)
     ServerManager.mount(ConfigPage(),  "/admin/config",  {}, __name__)
     ServerManager.mount(CounterPage(), "/admin/counter", {}, __name__)

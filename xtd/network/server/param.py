@@ -7,7 +7,7 @@ __author__    = "Xavier MARCELET <xavier@marcelet.com>"
 
 import cherrypy
 
-from ..core.param.manager import ParamManager
+from xtd.core.param.manager import ParamManager
 
 #------------------------------------------------------------------#
 

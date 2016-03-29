@@ -9,7 +9,8 @@ __version__   = "0.3"
 import json
 import io
 import cherrypy
-from ..core import logger
+
+from xtd.core import logger
 
 #------------------------------------------------------------------#
 
@@ -70,9 +71,12 @@ def log_request_response(p_withResponse):
     for i, part in enumerate(request.body.parts):
       l_body["parts"][i] = print_part(part)
 
+  l_headers = {}
+  if cherrypy.response.header_list:
+    l_headers = { s(x):s(y) for x,y in cherrypy.response.header_list }
   l_data["response"] = {
     "status"  : s(cherrypy.response.status),
-    "headers" : { s(x):s(y) for x,y in cherrypy.response.header_list },
+    "headers" : l_headers,
     "body"    : {
       "chunks" : []
     }

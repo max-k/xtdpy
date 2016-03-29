@@ -9,7 +9,7 @@ import collections
 import logging
 import cherrypy
 
-from ..core import logger
+from xtd.core import logger
 
 #------------------------------------------------------------------#
 
