@@ -47,34 +47,49 @@ def check_dir(p_section, p_name, p_value, p_read = False, p_write = False, p_exe
 # ------------------------------------------------------------------------- #
 
 def check_int(p_section, p_name, p_value, p_min = None, p_max = None):
-  try:
-    l_intValue = int(p_value)
-  except ValueError:
-    raise ConfigValueTypeException(p_section, p_name, p_value, ConfigTypeException.INT)
-  if (p_min != None) and (l_intValue < p_min):
+  if type(p_value) == int:
+    l_value = p_value
+  else:
+    if type(p_value) == str:
+      try:
+        l_value = int(p_value)
+      except ValueError:
+        raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.INT)
+    else:
+      raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.INT)
+
+  if (p_min != None) and (l_value < p_min):
     raise ConfigValueLimitsException(p_section, p_name, l_value, p_min, p_max)
-  if (p_max != None) and (l_intValue > p_max):
+  if (p_max != None) and (l_value > p_max):
     raise ConfigValueLimitsException(p_section, p_name, l_value, p_min, p_max)
-  return l_intValue
+  return l_value
 
 # ------------------------------------------------------------------------- #
 
 def check_float(p_section, p_name, p_value, p_min = None, p_max = None):
-  try:
-    l_floatValue = float(p_value)
-  except ValueError:
-    raise ConfigValueTypeException(p_section, p_name, p_value, ConfigTypeException.FLOAT)
-  if (p_min != None) and (l_floatValue < p_min):
-    raise ConfigValueLimitsException(p_section, p_name, p_value, p_min, p_max)
-  if (p_max != None) and (l_floatValue > p_max):
-    raise ConfigValueLimitsException(p_section, p_name, p_value, p_min, p_max)
-  return l_floatValue
+  if type(p_value) == float:
+    l_value = p_value
+  else:
+    if type(p_value) == str:
+      try:
+        l_value = float(p_value)
+      except ValueError:
+        raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.FLOAT)
+    else:
+      raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.FLOAT)
+  if (p_min != None) and (l_value < p_min):
+    raise ConfigValueLimitsException(p_section, p_name, l_value, p_min, p_max)
+  if (p_max != None) and (l_value > p_max):
+    raise ConfigValueLimitsException(p_section, p_name, l_value, p_min, p_max)
+  return l_value
 
 # ------------------------------------------------------------------------- #
 
 def check_bool(p_section, p_name, p_value):
   if type(p_value) == bool:
     return p_value
+  if type(p_value) != str:
+    raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.BOOL)
   if ((p_value.lower() == 'true') or
       (p_value.lower() == 'yes') or
       (p_value.lower() == 'on')):
@@ -83,7 +98,7 @@ def check_bool(p_section, p_name, p_value):
       (p_value.lower() == 'no') or
       (p_value.lower() == 'off')):
     return False
-  raise ConfigValueTypeException(p_section, p_name, l_value, ConfigTypeException.BOOL)
+  raise ConfigValueTypeException(p_section, p_name, p_value, ConfigValueTypeException.BOOL)
 
 # ------------------------------------------------------------------------- #
 
@@ -139,7 +154,7 @@ def check_host(p_section, p_name, p_value):
   try:
     socket.gethostbyname(p_value)
   except socket.gaierror:
-    l_message = "host '%s' is not valid" % l_value
+    l_message = "host '%s' is not valid" % p_value
     raise ConfigValueException(p_section, p_name, l_message)
   return p_value
 
@@ -168,26 +183,26 @@ def check_socket(p_section, p_name, p_value, p_schemes = [], p_checkUnix = False
 # ------------------------------------------------------------------------- #
 
 def is_file(*p_args, **p_kwds):
-  return partial(check_file, *p_args, **p_kwds)
+  return partial(check_file, *p_args, **p_kwds) # pragma: no cover
 def is_dir(*p_args, **p_kwds):
-  return partial(check_dir, *p_args, **p_kwds)
+  return partial(check_dir, *p_args, **p_kwds) # pragma: no cover
 def is_int(*p_args, **p_kwds):
-  return partial(check_int, *p_args, **p_kwds)
+  return partial(check_int, *p_args, **p_kwds) # pragma: no cover
 def is_float(*p_args, **p_kwds):
-  return partial(check_float, *p_args, **p_kwds)
+  return partial(check_float, *p_args, **p_kwds) # pragma: no cover
 def is_bool(*p_args, **p_kwds):
-  return partial(check_bool, *p_args, **p_kwds)
+  return partial(check_bool, *p_args, **p_kwds) # pragma: no cover
 def is_enum(*p_args, **p_kwds):
-  return partial(check_enum, *p_args, **p_kwds)
+  return partial(check_enum, *p_args, **p_kwds) # pragma: no cover
 def is_mail(*p_args, **p_kwds):
-  return partial(check_mail, *p_args, **p_kwds)
+  return partial(check_mail, *p_args, **p_kwds) # pragma: no cover
 def is_array(*p_args, **p_kwds):
-  return partial(check_array, *p_args, **p_kwds)
+  return partial(check_array, *p_args, **p_kwds) # pragma: no cover
 def is_host(*p_args, **p_kwds):
-  return partial(check_host, *p_args, **p_kwds)
+  return partial(check_host, *p_args, **p_kwds) # pragma: no cover
 def is_json(*p_args, **p_kwds):
-  return partial(check_json, *p_args, **p_kwds)
+  return partial(check_json, *p_args, **p_kwds) # pragma: no cover
 def is_socket(*p_args, **p_kwds):
-  return partial(check_socket, *p_args, **p_kwds)
+  return partial(check_socket, *p_args, **p_kwds) # pragma: no cover
 
 # ------------------------------------------------------------------------- #
