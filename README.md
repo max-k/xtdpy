@@ -1,1 +1,3 @@
 # xtd
+
+[![Build Status](https://travis-ci.org/psycofdj/xtd.svg?branch=master)](https://travis-ci.org/psycofdj/xtd)
