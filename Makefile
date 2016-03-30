@@ -3,16 +3,10 @@ SOURCEDIRS=$(shell find . -name '*.py' | grep -v test | xargs dirname | sort -u)
 TESTS=$(shell find . -name 'test_*.py')
 
 check: $(SOURCES)
-	@for c_file in $$(echo $(TESTS)); do         \
-	  echo "running test suite : $${c_file}";    \
-	  PYTHONPATH=. python3 $${c_file} $(ARGS) || true; \
-	 done
+	@./scripts/unittests.py
 
 .cov-buit: $(SOURCES) $(TESTS) Makefile
-	@rm -f .coverage
-	@for c_file in $$(echo $(TESTS)); do \
-	  PYTHONPATH=. coverage3 run --source="$(shell echo $(SOURCEDIRS) | sed 's/ /,/g')" --omit 'xtd/test/*' -a --branch $${c_file} || true;  \
-	 done
+	@./scripts/coverage.sh
 	@touch $@
 
 .cov-report-built: .cov-buit
