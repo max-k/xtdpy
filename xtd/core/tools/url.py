@@ -31,10 +31,3 @@ def unparse_unix(p_parsed, p_unix):
     p_parsed[0] = "unix+%s" % p_parsed[0]
     p_parsed[1] = urllib.parse.quote_plus(p_unix)
   return urllib.parse.urlunparse(p_parsed)
-
-
-if __name__ == "__main__":
-  print(str(parse_unix("http://localhost:8080/path/to?param=1")))
-  print(str(parse_unix("unix+http://%2Ftmp%2Fsocket.sock/path/to?param=1")))
-  l_parsed, l_unix = parse_unix("unix+http://%2Ftmp%2Fsocket.sock/path/to?param=1")
-  print(str(unparse_unix(l_parsed)))
