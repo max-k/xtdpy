@@ -1,4 +1,5 @@
 SOURCES=$(shell find . -name '*.py' | grep -v test_)
+SOURCEDIRS=$(shell find . -name '*.py' | grep -v test | xargs dirname | sort -u)
 TESTS=$(shell find . -name 'test_*.py')
 
 check: $(SOURCES)
@@ -7,15 +8,15 @@ check: $(SOURCES)
 	  PYTHONPATH=. python3 $${c_file} $(ARGS) || true; \
 	 done
 
-.cov-buit: $(SOURCES) $(TESTS)
+.cov-buit: $(SOURCES) $(TESTS) Makefile
 	@rm -f .coverage
-	@for c_file in $$(echo $(TESTS)); do \
-	  PYTHONPATH=. coverage run --omit 'xtd/test/*' -a --branch $${c_file} || true;  \
+	for c_file in $$(echo $(TESTS)); do \
+	  PYTHONPATH=. coverage3 run --source="$(shell echo $(SOURCEDIRS) | sed 's/ /,/g')" --omit 'xtd/test/*' -a --branch $${c_file} || true;  \
 	 done
 	@touch $@
 
 .cov-report-built: .cov-buit
-	@coverage html -d build/coverage
+	@coverage3 html -d build/coverage
 	@touch $@
 
 cov: .cov-buit .cov-report-built
